@@ -58,8 +58,6 @@ class Melty {
 	 
   this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
   this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
-  this.step       = parseFloat(document.getElementById("step").value);  // Step limit
-  this.stepcount  = 0; // Step counter
 	
   this.rpm        = 0;   // Speed rpm
   this.devhigh    = 0; // % speed high
@@ -135,8 +133,6 @@ class Melty {
 	this.mo = (this.radius / this.diameter) * (this.speedr - this.speedl);	
 
 	this.distance = Math.round(dist(0,0,this.px,this.py));
-
-	this.stepcount++;
 	
   }
 

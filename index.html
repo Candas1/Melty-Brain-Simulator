@@ -4,11 +4,33 @@
 <script>
 
 let robot;
+let scl = 2;
+let ctrlsize = 200;
 
 function setup() {
 
-  createCanvas(1200, 600);
+  //createCanvas(1200, 600);
+  var cnv = createCanvas(windowWidth, windowHeight);
+  cnv.style('display', 'block');
+
+  rpmSlider = createSlider(0, 1000, 1);
+  rpmSlider.position(50, 50);
+  
+  lowSlider = createSlider(0, 100, 10);
+  lowSlider.position(50, 70);
+  highSlider = createSlider(0, 100, 10);
+  highSlider.position(50, 90);
+  
+  decSlider = createSlider(1, 100, 10);
+  decSlider.position(50, 110);
+  accSlider = createSlider(1, 100, 10);
+  accSlider.position(50, 130);
+
   reset();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
 
 function reset(){
@@ -17,18 +39,31 @@ function reset(){
   robot.update();
 }
 
+function mouseWheel(event) {
+  scl += event.delta * 0.001;
+  return false;
+}
+
 function draw() {
-  
+
+  background(0);
+
+  fill("white");
+  textSize(15);
+  text('Rpm(' + rpmSlider.value() + ')' , rpmSlider.x  + rpmSlider.width , rpmSlider.y-rpmSlider.height/2);
+  text('Low rpm %(' + lowSlider.value() + ')' , lowSlider.x  + lowSlider.width , lowSlider.y-lowSlider.height/2);
+  text('High rpm %('+ highSlider.value() + ')', highSlider.x + highSlider.width, highSlider.y-highSlider.height/2);
+  text('Acc. %('+ accSlider.value() + ')' , accSlider.x  + accSlider.width , accSlider.y-accSlider.height/2);
+  text('Dec. %('+ decSlider.value() + ')' , decSlider.x  + decSlider.width , decSlider.y-decSlider.height/2);
+  text('Distance : ' + robot.distance, 50, 150);
+
+
+  fill("grey");
+  circle(width - ctrlsize/2,ctrlsize/2,ctrlsize);
+
   push(); // start a transformation matrix
   translate(width / 2, height / 2); // move to middle of screen
-  
-  background(0);
-  
-  fill("white");
-  textSize(20);
-  text('Distance : ' + robot.distance, -600, -270);
-	
-  let scl = 2;
+
   scale(scl,scl*-1);
   
   robot.update();
@@ -37,6 +72,18 @@ function draw() {
 
   pop(); // pop down final transformation	 
 
+}
+
+function mouseClicked(){
+  if (dist(width - ctrlsize/2,ctrlsize/2,mouseX,mouseY) > ctrlsize) return;
+
+  let distx = width - ctrlsize/2 - mouseX;
+  let disty = ctrlsize/2 - mouseY;
+
+  let angle = degrees(Math.atan2(disty,distx)) + 180;
+  if (angle < 0) angle += 360;
+  angle = 360 - angle;
+  document.getElementById("meltyAngle").value = angle;
 }
 
 class Melty {
@@ -59,12 +106,12 @@ class Melty {
   this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
   this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
 	
-  this.rpm        = 0;   // Speed rpm
+  this.rpm        = 0; // Speed rpm
   this.devhigh    = 0; // % speed high
   this.devlow     = 0; // % speed low
-  this.meltyAngle = 0;  // Commanded Angle
-  this.accrate    = 0;  // Acceleration Rate %
-  this.decrate    = 0;  // Deceleration Rate %
+  this.meltyAngle = 0; // Commanded Angle
+  this.accrate    = 0; // Acceleration Rate %
+  this.decrate    = 0; // Deceleration Rate %
   this.wspeed     = 0; // wheel speed centimeter
   this.speedhigh  = 0; // Speed high
   this.speedlow   = 0; // Speed low
@@ -74,12 +121,12 @@ class Melty {
   }
   
   update(){
-    this.rpm        = parseFloat(document.getElementById("rpm").value);   // Speed rpm
-    this.devhigh    = parseFloat(document.getElementById("devhigh").value); // % speed high
-    this.devlow     = parseFloat(document.getElementById("devlow").value); // % speed low
+    this.rpm        = rpmSlider.value();   // Speed rpm
+    this.devhigh    = highSlider.value(); // % speed high
+    this.devlow     = lowSlider.value(); // % speed low
     this.meltyAngle = parseFloat(document.getElementById("meltyAngle").value);  // Commanded Angle
-    this.accrate    = parseFloat(document.getElementById("accrate").value);  // Acceleration Rate %
-    this.decrate    = parseFloat(document.getElementById("decrate").value);  // Deceleration Rate %
+    this.accrate    = accSlider.value();  // Acceleration Rate %
+    this.decrate    = decSlider.value();  // Deceleration Rate %
 	
     this.wspeed = this.rpm * 2 * PI * this.radius / 60 / 60; // wheel speed centimeter
 	
@@ -145,7 +192,7 @@ class Melty {
     translate(this.px,this.py);
     rotate(this.headingr);
 	
-    fill("white"); 
+    fill("grey"); 
     circle(0,0,sizeb);
     
     // Draw wheels
@@ -155,10 +202,15 @@ class Melty {
     rect( 0 - sizewh/2     , 0 - this.diameter/2 - sizeww/2 , sizewh , sizeww );
     
     // LED
+    
     if (this.heading >= 350 || this.heading <= 10){
+      stroke("Red");
       fill("red");
-      circle(0 + sizeb/3 ,0 , sizeb/10);
+    }else{
+      noStroke();
+      fill("black");
     }
+    circle(0 + sizeb/3 ,0 , sizeb/10);
 	
   }
 }
@@ -174,19 +226,6 @@ class Melty {
   <input type="number" id="radius" size="5" value="8.4" step=".1">
   <label for="name">Melty Angle</label>
   <input type="number" id="meltyAngle" size="5" value="0">
-	   
-  <br>
-  <label for="name">Wheel Speed(rpm)</label>
-  <input type="number" id="rpm" size="5" value="1">
-  <label for="name">% High</label>
-  <input type="number" id="devhigh" size="5" value="20">
-  <label for="name">% Low</label>
-  <input type="number" id="devlow" size="5" value="20">
-  <label for="name">Acceleration rate %</label>
-  <input type="number" id="accrate" size="5" value="10" step="1">
-  <label for="name">Deceleration rate %</label>
-  <input type="number" id="decrate" size="5" value="10" step="1">
-  
   <button type="button" onclick="reset()" >Reset</button>
   </body>
   <style>

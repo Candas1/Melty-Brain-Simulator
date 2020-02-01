@@ -10,7 +10,7 @@ let ctrlsize = 200;
 function setup() {
 
   //createCanvas(1200, 600);
-  var cnv = createCanvas(windowWidth, windowHeight);
+  var cnv = createCanvas(windowWidth-50, windowHeight-50);
   cnv.style('display', 'block');
 
   rpmSlider = createSlider(0, 1000, 1);
@@ -30,7 +30,7 @@ function setup() {
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
+  resizeCanvas(windowWidth-50, windowHeight-50);
 }
 
 function reset(){

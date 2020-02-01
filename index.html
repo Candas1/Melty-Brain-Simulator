@@ -41,68 +41,66 @@ function draw() {
 
 class Melty {
   constructor() {
-	this.px       = 0; // X position
-	this.py       = 0; // Y position
-	this.heading  = 0; // Heading
-	this.headingr = radians(this.heading); // Heading radian
-	this.mx 	  = 0; // X movement
-	this.my 	  = 0; // Y movement
-	this.mo 	  = 0; // angular movement
-	this.speedl   = 0; // Current speed left 
-	this.speedr   = 0; // Current speed right
-	this.cspeedl  = 0; // Commanded speed left 
-	this.cspeedr  = 0; // Commanded speed right
-	this.speedavg = 0; // Average speed
-	this.distance = 0; // Distance
-	this.diff 	  = 0; // Angle difference
+  this.px       = 0; // X position
+  this.py       = 0; // Y position
+  this.heading  = 0; // Heading
+  this.headingr = 0; // Heading radian
+  this.mx 	= 0; // X movement
+  this.my 	= 0; // Y movement
+  this.mo 	= 0; // angular movement
+  this.speedl   = 0; // Current speed left 
+  this.speedr   = 0; // Current speed right
+  this.cspeedl  = 0; // Commanded speed left 
+  this.cspeedr  = 0; // Commanded speed right
+  this.speedavg = 0; // Average speed
+  this.distance = 0; // Distance
+  this.diff 	= 0; // Angle difference
 	 
+  this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
+  this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
+  this.step       = parseFloat(document.getElementById("step").value);  // Step limit
+  this.stepcount  = 0; // Step counter
 	
-	this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
-	this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
-	this.step       = parseFloat(document.getElementById("step").value);  // Step limit
-	this.stepcount  = 0; // Step counter
-	
-	this.rpm        = 0;   // Speed rpm
-	this.devhigh    = 0; // % speed high
-    this.devlow     = 0; // % speed low
-	this.meltyAngle = 0;  // Commanded Angle
-	this.accrate    = 0;  // Acceleration Rate %
-	this.decrate    = 0;  // Deceleration Rate %
-    this.wspeed     = 0; // wheel speed centimeter
-	this.speedhigh  = 0; // Speed high
-	this.speedlow   = 0; // Speed low
-	this.accval     = 0; // Speed increment
-	this.deccal     = 0; // Speed decrement
+  this.rpm        = 0;   // Speed rpm
+  this.devhigh    = 0; // % speed high
+  this.devlow     = 0; // % speed low
+  this.meltyAngle = 0;  // Commanded Angle
+  this.accrate    = 0;  // Acceleration Rate %
+  this.decrate    = 0;  // Deceleration Rate %
+  this.wspeed     = 0; // wheel speed centimeter
+  this.speedhigh  = 0; // Speed high
+  this.speedlow   = 0; // Speed low
+  this.accval     = 0; // Speed increment
+  this.deccal     = 0; // Speed decrement
 	
   }
   
   update(){
     this.rpm        = parseFloat(document.getElementById("rpm").value);   // Speed rpm
-	this.devhigh    = parseFloat(document.getElementById("devhigh").value); // % speed high
+    this.devhigh    = parseFloat(document.getElementById("devhigh").value); // % speed high
     this.devlow     = parseFloat(document.getElementById("devlow").value); // % speed low
-	this.meltyAngle = parseFloat(document.getElementById("meltyAngle").value);  // Commanded Angle
-	this.accrate    = parseFloat(document.getElementById("accrate").value);  // Acceleration Rate %
-	this.decrate    = parseFloat(document.getElementById("decrate").value);  // Deceleration Rate %
+    this.meltyAngle = parseFloat(document.getElementById("meltyAngle").value);  // Commanded Angle
+    this.accrate    = parseFloat(document.getElementById("accrate").value);  // Acceleration Rate %
+    this.decrate    = parseFloat(document.getElementById("decrate").value);  // Deceleration Rate %
 	
     this.wspeed = this.rpm * 2 * PI * this.radius / 60 / 60; // wheel speed centimeter
 	
-	this.speedhigh = this.wspeed + (this.wspeed * this.devhigh / 100); // Speed high
-	this.speedlow  = this.wspeed - (this.wspeed * this.devlow  / 100); // Speed low
-	this.accval    = this.wspeed * this.accrate / 100; // Speed increment
-	this.decval    = this.wspeed * this.decrate / 100; // Speed decrement
+    this.speedhigh = this.wspeed + (this.wspeed * this.devhigh / 100); // Speed high
+    this.speedlow  = this.wspeed - (this.wspeed * this.devlow  / 100); // Speed low
+    this.accval    = this.wspeed * this.accrate / 100; // Speed increment 
+    this.decval    = this.wspeed * this.decrate / 100; // Speed decrement
   }
 
   move() {
-    if (this.stepcount >= this.step ) return;
-	
+    
 	// Calculate position based on previous movements
 	this.px += this.mx;
 	this.py += this.my;
 	this.headingr = (this.headingr + this.mo) % (2 * PI);
 	this.heading  = degrees(this.headingr);
-	
+
 	this.diff = 180 - abs(abs(this.meltyAngle - this.heading) - 180);
-	
+
 	// Set commanded speed based on difference between commanded and robot angle
 	if (this.diff > 90){
 	  this.cspeedr = this.speedlow;
@@ -111,7 +109,7 @@ class Melty {
 	  this.cspeedr = this.speedhigh;
 	  this.cspeedl = this.speedlow * -1;  
 	}
-	 
+
 	if (this.cspeedl < this.speedl){
 	  // Calculate Left wheel speed taking Acceleration rate into account
 	  this.speedl = this.speedl + Math.max(this.cspeedl - this.speedl,this.accval * -1);
@@ -119,7 +117,7 @@ class Melty {
 	  // Calculate Left wheel speed taking Deceleration rate into account
 	  this.speedl = this.speedl - Math.max(this.speedl - this.cspeedl,this.decval * -1);
 	}
-	 
+
 	if (this.cspeedr < this.speedr){
 	  // Calculate Right wheel speed taking Acceleration rate into account
 	  this.speedr = this.speedr + Math.min(this.cspeedr - this.speedr,this.accval);
@@ -127,17 +125,17 @@ class Melty {
 	  // Calculate Right wheel speed taking Deceleration rate into account
 	  this.speedr = this.speedr - Math.min(this.speedr - this.cspeedr,this.decval);
 	}
-	
+
 	// Average Speed
 	this.speedavg = ( abs(this.speedr) + abs(this.speedl) )/ 2;
-	 
+
 	//Calculate movements
 	this.mx = (this.radius/2) * (this.speedr + this.speedl) * Math.cos(this.headingr);
 	this.my = (this.radius/2) * (this.speedr + this.speedl) * Math.sin(this.headingr);
 	this.mo = (this.radius / this.diameter) * (this.speedr - this.speedl);	
-	
+
 	this.distance = Math.round(dist(0,0,this.px,this.py));
-	
+
 	this.stepcount++;
 	
   }
@@ -148,23 +146,23 @@ class Melty {
     let sizeww = this.radius;
     let sizeb  = this.diameter + ( this.radius * 2 );
 	
-	translate(this.px,this.py);
-	rotate(this.headingr);
+    translate(this.px,this.py);
+    rotate(this.headingr);
 	
     fill("white"); 
     circle(0,0,sizeb);
     
     // Draw wheels
-	fill( (this.diff > 90) ? "green" : "red" );
+    fill( (this.diff > 90) ? "green" : "red" );
     rect( 0 - sizewh/2     , this.diameter/2 - sizeww/2 , sizewh , sizeww );
-	fill( (this.diff > 90) ? "red" : "green" );
+    fill( (this.diff > 90) ? "red" : "green" );
     rect( 0 - sizewh/2     , 0 - this.diameter/2 - sizeww/2 , sizewh , sizeww );
     
     // LED
-	if (this.heading >= 350 || this.heading <= 10){
-	  fill("red");
-	  circle(0 + sizeb/3 ,0 , sizeb/10);
-	}
+    if (this.heading >= 350 || this.heading <= 10){
+      fill("red");
+      circle(0 + sizeb/3 ,0 , sizeb/10);
+    }
 	
   }
 }
@@ -180,8 +178,6 @@ class Melty {
   <input type="number" id="radius" size="5" value="8.4" step=".1">
   <label for="name">Melty Angle</label>
   <input type="number" id="meltyAngle" size="5" value="0">
-  <label for="name">Steps</label>
-  <input type="number" id="step" size="5" value="500">
 	   
   <br>
   <label for="name">Wheel Speed(rpm)</label>

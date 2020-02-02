@@ -14,40 +14,25 @@ let interval = 1;
 
 function setup() {
 
-  //createCanvas(1200, 600);
   var cnv = createCanvas(windowWidth-50, windowHeight-50);
-  cnv.style('display', 'block');
-
-  rpmSlider = createSlider(0, 1000, 1);
-  rpmSlider.position(50, 50);
-  
-  lowSlider = createSlider(0, 100, 10);
-  lowSlider.position(50, 80);
-  highSlider = createSlider(0, 100, 10);
-  highSlider.position(50, 110);
-  
-  decSlider = createSlider(1, 100, 10);
-  decSlider.position(50, 140);
-  accSlider = createSlider(1, 100, 10);
-  accSlider.position(50, 170);
-
-  checkbox = createCheckbox('label', false);
+  //cnv.style('display', 'block');
+  ctrl = new Control(50 + ctrlsize/2,ctrlsize/2 + 10,ctrlsize);
 
   reset();
-
+  
   timer = createP("timer");
   setInterval(timeit, interval*1000);
 
-}
-
-function windowResized() {
-  resizeCanvas(windowWidth-50, windowHeight-50);
 }
 
 function reset(){
   background(0);// clear the screen
   robot = new Melty();
   robot.update();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth-50, windowHeight-50);
 }
 
 function mouseWheel(event) {
@@ -58,85 +43,127 @@ function mouseWheel(event) {
 function draw() {
 
   background(0);
-
-  draw_inputs();
-
-  push(); // start a transformation matrix
-  translate(width / 2, height / 2); // move to middle of screen
-
-  scale(scl,scl*-1);
+  grid();
   
   robot.update();
-
   robot.move();
   robot.display();
 
-  pop(); // pop down final transformation	 
+  ctrl.display();
 
 }
 
-function draw_inputs(){
-
-  // inputs text's
-  fill("white");
-  textSize(15);
-  text('Rpm(' + rpmSlider.value() + ')' , rpmSlider.x  + rpmSlider.width , rpmSlider.y-rpmSlider.height/2);
-  text('Low rpm %(' + lowSlider.value() + ')' , lowSlider.x  + lowSlider.width , lowSlider.y-lowSlider.height/2);
-  text('High rpm %('+ highSlider.value() + ')', highSlider.x + highSlider.width, highSlider.y-highSlider.height/2);
-  text('Acc. %('+ accSlider.value() + ')' , accSlider.x  + accSlider.width , accSlider.y-accSlider.height/2);
-  text('Dec. %('+ decSlider.value() + ')' , decSlider.x  + decSlider.width , decSlider.y-decSlider.height/2);
-  
-  // outputs
-  fill("white"); 
-  text("Linear speed(" + robot.linspeed + ")", 50, 200);
-  fill("red"); 
-  text("Heading(" + Math.round(robot.heading) + "°)", 50, 230);
-  fill("yellow"); 
-  text("Melty angle(" + robot.meltyAngle + "°)", 50, 260);
-  fill("green"); 
-  text("Real Angle(" + robot.realAngle + "°)", 50, 290);
-  fill("blue"); 
-  text("State(" + robot.state + ")", 50, 320);
-
-  // Control area
-  fill("grey");
-  circle(width - ctrlsize/2,ctrlsize/2,ctrlsize);
-
-  // Control area
-  fill("black");
-  circle(width - ctrlsize/2,ctrlsize/2,ctrlsize/2);
-
+function grid() {
+  stroke("grey");
+  for (var x = 0; x < width; x += 20) {
+    line(x, 0, x, height);
+    for (var y = 0; y < height; y += 20) {
+      line(0, y, width, y);
+    }
+  }
 }
 
 function mouseClicked(){
-  // Was the click in the circle
-  if (dist(width - ctrlsize/2,ctrlsize/2,mouseX,mouseY) > ctrlsize/2) return;
-  if (dist(width - ctrlsize/2,ctrlsize/2,mouseX,mouseY) < ctrlsize/4){
-    robot.state = "SPIN";
-    robot.meltyAngle = 0;  
-  }else{
-    robot.state = "MELTY";
-    let distx = width - ctrlsize/2 - mouseX;
-    let disty = ctrlsize/2 - mouseY;
-
-    let angle = degrees(Math.atan2(disty,distx)) + 180;
-    if (angle < 0) angle += 360;
-    angle = 360 - angle;
-    robot.meltyAngle = Math.round(angle);
-  }
-
-  // Save position
-  robot.ox = robot.px;
-  robot.oy = robot.py;
+  ctrl.clicked(mouseX,mouseY);
 }
 
 function timeit(){
+    // calculate speed every second
     robot.distance = Math.round(dist(robot.ox,robot.oy,robot.px,robot.py));
     robot.linspeed = Math.round(robot.distance / interval);
 
     // Save position
     robot.ox = robot.px;
     robot.oy = robot.py;
+}
+
+
+class Control{
+  constructor(px,py,psize){
+    this.x = px;
+    this.y = py;
+    this.size = psize;
+    this.insize = this.size/2;
+    this.radius = this.size/2;
+    this.inradius = this.radius/2;
+    this.rpmSlider = createSlider(0, 1000, 1);
+    this.rpmSlider.position(50, 250);
+    
+    this.lowSlider = createSlider(0, 100, 10);
+    this.lowSlider.position(50, 280);
+    this.highSlider = createSlider(0, 100, 10);
+    this.highSlider.position(50, 310);
+    
+    this.decSlider = createSlider(1, 100, 10);
+    this.decSlider.position(50, 340);
+    this.accSlider = createSlider(1, 100, 10);
+    this.accSlider.position(50, 370);
+    this.rstbut = createButton('Reset');
+    this.rstbut.position(250,50);
+    this.rstbut.mousePressed(reset);
+  }
+  display(){
+    fill("black");
+    rect(0,0, 300 , height);
+      
+    // Control area
+    fill("grey");
+    circle(this.x,this.y,this.size);
+
+    // SPIN area
+    fill("black");
+    circle(this.x,this.y,this.insize);
+
+    // State
+    fill("blue");
+    textSize(28);
+    textAlign(CENTER,CENTER);
+    text(robot.state, this.x, this.y);
+
+    // Input texts
+    textAlign(LEFT,CENTER);
+    fill("white");
+    textSize(15);
+    text('Rpm(' + ctrl.rpmSlider.value() + ')' , ctrl.rpmSlider.x  + ctrl.rpmSlider.width , ctrl.rpmSlider.y - ctrl.rpmSlider.height/2);
+    text('Low rpm %(' + ctrl.lowSlider.value() + ')' , ctrl.lowSlider.x  + ctrl.lowSlider.width , ctrl.lowSlider.y - ctrl.lowSlider.height/2);
+    text('High rpm %('+ ctrl.highSlider.value() + ')', ctrl.highSlider.x + ctrl.highSlider.width, ctrl.highSlider.y - ctrl.highSlider.height/2);
+    text('Acc. %('+ ctrl.accSlider.value() + ')' , ctrl.accSlider.x  + ctrl.accSlider.width , ctrl.accSlider.y - ctrl.accSlider.height/2);
+    text('Dec. %('+ ctrl.decSlider.value() + ')' , ctrl.decSlider.x  + ctrl.decSlider.width , ctrl.decSlider.y - ctrl.decSlider.height/2);
+    
+    // Metrics
+    fill("white"); 
+    text("Linear speed(" + robot.linspeed + ")", 50, 400);
+    fill("red"); 
+    text("Heading(" + Math.round(robot.heading) + "°)", 50, 430);
+    fill("yellow"); 
+    text("Melty angle(" + robot.meltyAngle + "°)", 50, 460);
+    fill("green"); 
+    text("Real Angle(" + robot.realAngle + "°)", 50, 490);
+  }
+  clicked(mouseX,mouseY){
+  
+    // Was the click in the circle
+    if (dist(this.x,this.y,mouseX,mouseY) > this.radius) return;
+
+    if (dist(this.x,this.y,mouseX,mouseY) < this.inradius){
+      // Click in inner area
+      robot.state = "SPIN";
+      robot.meltyAngle = 0;
+      robot.realAngle = 0; 
+    }else{
+      // Click in outer area
+      robot.state = "MELTY";
+      let angle = degrees(Math.atan2(this.y - mouseY,this.x - mouseX)) + 180;
+      if (angle < 0) angle += 360;
+      angle = 360 - angle;
+      robot.meltyAngle = Math.round(angle);
+    }
+
+    // Save position
+    robot.ox = robot.px;
+    robot.oy = robot.py;
+
+  }
 }
 
 class Melty {
@@ -175,15 +202,19 @@ class Melty {
   this.speedlow   = 0; // Speed low
   this.accval     = 0; // Speed increment
   this.deccal     = 0; // Speed decrement
+
+  this.wheight = this.radius * 2; // Wheel height
+  this.wwidth  = this.radius;  // Wheel width
+  this.rsize   = this.diameter + ( this.wwidth * 2 ); // Robot diameter
 	
   }
   
   update(){
-    this.rpm        = rpmSlider.value();   // Speed rpm
-    this.devhigh    = highSlider.value(); // % speed high
-    this.devlow     = lowSlider.value(); // % speed low
-    this.accrate    = accSlider.value();  // Acceleration Rate %
-    this.decrate    = decSlider.value();  // Deceleration Rate %
+    this.rpm        = ctrl.rpmSlider.value();   // Speed rpm
+    this.devhigh    = ctrl.highSlider.value(); // % speed high
+    this.devlow     = ctrl.lowSlider.value(); // % speed low
+    this.accrate    = ctrl.accSlider.value();  // Acceleration Rate %
+    this.decrate    = ctrl.decSlider.value();  // Deceleration Rate %
 	
     this.wspeed = this.rpm * 2 * PI * this.radius / 60 / 60; // wheel speed centimeter
 	
@@ -194,96 +225,95 @@ class Melty {
   }
 
   move() {
-    
-	// Calculate position based on previous movements
-	this.px += this.mx;
-	this.py += this.my;
-	this.headingr = (this.headingr + this.mo) % (2 * PI);
-	this.heading  = degrees(this.headingr);
+    // Calculate position based on previous movements
+    this.px += this.mx;
+    this.py += this.my;
+    this.headingr = (this.headingr + this.mo) % (2 * PI);
+    this.heading  = degrees(this.headingr);
 
-	this.diff = 180 - abs(abs(this.meltyAngle - this.heading) - 180);
+    this.diff = 180 - abs(abs(this.meltyAngle - this.heading) - 180);
 
-  if ( this.state == "SPIN"){
-    this.cspeedr = this.wspeed;
-    this.cspeedl = this.wspeed * -1;
-  }else{
-    // Set commanded speed based on difference between commanded and robot angle
-    if (this.diff > 90){
-      this.cspeedr = this.speedlow;
-      this.cspeedl = this.speedhigh * -1;
+    if ( this.state == "SPIN"){
+      this.cspeedr = this.wspeed;
+      this.cspeedl = this.wspeed * -1;
     }else{
-      this.cspeedr = this.speedhigh;
-      this.cspeedl = this.speedlow * -1;  
+      // Set commanded speed based on difference between commanded and robot angle
+      if (this.diff > 90){
+        this.cspeedr = this.speedlow;
+        this.cspeedl = this.speedhigh * -1;
+      }else{
+        this.cspeedr = this.speedhigh;
+        this.cspeedl = this.speedlow * -1;  
+      }
     }
-  }
 
-	if (this.cspeedl < this.speedl){
-	  // Calculate Left wheel speed taking Acceleration rate into account
-	  this.speedl = this.speedl + Math.max(this.cspeedl - this.speedl,this.accval * -1);
-	}else{
-	  // Calculate Left wheel speed taking Deceleration rate into account
-	  this.speedl = this.speedl - Math.max(this.speedl - this.cspeedl,this.decval * -1);
-  }
+    if (this.cspeedl < this.speedl){
+      // Calculate Left wheel speed taking Acceleration rate into account
+      this.speedl = this.speedl + Math.max(this.cspeedl - this.speedl,this.accval * -1);
+    }else{
+      // Calculate Left wheel speed taking Deceleration rate into account
+      this.speedl = this.speedl - Math.max(this.speedl - this.cspeedl,this.decval * -1);
+    }
 
-	if (this.cspeedr < this.speedr){
-	  // Calculate Right wheel speed taking Acceleration rate into account
-	  this.speedr = this.speedr + Math.min(this.cspeedr - this.speedr,this.accval);
-	}else{
-	  // Calculate Right wheel speed taking Deceleration rate into account
-	  this.speedr = this.speedr - Math.min(this.speedr - this.cspeedr,this.decval);
-  }
+    if (this.cspeedr < this.speedr){
+      // Calculate Right wheel speed taking Acceleration rate into account
+      this.speedr = this.speedr + Math.min(this.cspeedr - this.speedr,this.accval);
+    }else{
+      // Calculate Right wheel speed taking Deceleration rate into account
+      this.speedr = this.speedr - Math.min(this.speedr - this.cspeedr,this.decval);
+    }
 
-  if (this.rpm == 0) this.speedl = this.speedr = 0;
+    if (this.rpm == 0) this.speedl = this.speedr = 0;
 
-	// Average Speed
-	this.speedavg = ( abs(this.speedr) + abs(this.speedl) )/ 2;
+    // Average Speed
+    this.speedavg = ( abs(this.speedr) + abs(this.speedl) )/ 2;
 
-	//Calculate movements
-	this.mx = (this.radius/2) * (this.speedr + this.speedl) * Math.cos(this.headingr);
-	this.my = (this.radius/2) * (this.speedr + this.speedl) * Math.sin(this.headingr);
-	this.mo = (this.radius / this.diameter) * (this.speedr - this.speedl);	
+    //Calculate movements
+    this.mx = (this.radius/2) * (this.speedr + this.speedl) * Math.cos(this.headingr);
+    this.my = (this.radius/2) * (this.speedr + this.speedl) * Math.sin(this.headingr);
+    this.mo = (this.radius / this.diameter) * (this.speedr - this.speedl);	
 	
   }
 
   display() {
-  
-    let sizewh = this.radius * 2;
-    let sizeww = this.radius;
-    let sizeb  = this.diameter + ( this.radius * 2 );
+
+    push(); // start a transformation matrix
+    translate( (width + width / 4 ) / 2, height / 2); // move to middle of screen
+
+    scale(scl,scl*-1);
 	
     translate(this.px,this.py);
 
     if ( this.state == "MELTY"){
       // Draw vector for commanded angle
-      vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), sizeb*2);
+      vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), this.rsize*2);
       stroke("yellow");
       line(0,0,vmeltangle.x, vmeltangle.y);
 
       // Draw vector for real angle
       vrealangle = createVector(this.px - this.ox,this.py - this.oy);
-      let dispangle = p5.Vector.fromAngle(vrealangle.heading(), sizeb*2);
+      let dispangle = p5.Vector.fromAngle(vrealangle.heading(), this.rsize*2);
       stroke("green");
       line(0,0,dispangle.x, dispangle.y);
       this.realAngle = Math.round(degrees(vrealangle.heading()));
     }
 
     // Draw vector for heading
-    vheading = p5.Vector.fromAngle(this.headingr, sizeb*2);
+    vheading = p5.Vector.fromAngle(this.headingr, this.rsize*2);
     stroke("red");
     line(0,0,vheading.x, vheading.y);
     
-
     rotate(this.headingr);
 
     stroke("black"); 
     fill("grey"); 
-    circle(0,0,sizeb);
+    circle(0,0,this.rsize);
     
     // Draw wheels
     fill( (this.diff > 90) ? "green" : "red" );
-    rect( 0 - sizewh/2     , this.diameter/2 - sizeww/2 , sizewh , sizeww );
+    rect( 0 - this.wheight/2 , this.diameter/2 - this.wwidth/2 , this.wheight , this.wwidth );
     fill( (this.diff > 90) ? "red" : "green" );
-    rect( 0 - sizewh/2     , 0 - this.diameter/2 - sizeww/2 , sizewh , sizeww );
+    rect( 0 - this.wheight/2 , 0 - this.diameter/2 - this.wwidth/2 , this.wheight , this.wwidth );
     
     // LED
     
@@ -294,7 +324,9 @@ class Melty {
       noStroke();
       fill("black");
     }
-    circle(0 + sizeb/3 ,0 , sizeb/10);
+    circle(0 + this.rsize/3 ,0 , this.rsize/10);
+
+    pop(); // pop down final transformation	 
 	
   }
 }
@@ -308,7 +340,6 @@ class Melty {
   <input type="number" id="diameter" size="5" value="22" step="1">
   <label for="name">Wheel Radius</label>
   <input type="number" id="radius" size="5" value="8.4" step=".1">
-  <button type="button" onclick="reset()" >Reset</button>
   </body>
   <style>
     input[type="number"] {

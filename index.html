@@ -6,6 +6,11 @@
 let robot;
 let scl = 2;
 let ctrlsize = 200;
+let vheading;
+let vmeltangle;
+let vrealangle;
+let timer;
+let interval = 1;
 
 function setup() {
 
@@ -17,16 +22,20 @@ function setup() {
   rpmSlider.position(50, 50);
   
   lowSlider = createSlider(0, 100, 10);
-  lowSlider.position(50, 70);
+  lowSlider.position(50, 80);
   highSlider = createSlider(0, 100, 10);
-  highSlider.position(50, 90);
+  highSlider.position(50, 110);
   
   decSlider = createSlider(1, 100, 10);
-  decSlider.position(50, 110);
+  decSlider.position(50, 140);
   accSlider = createSlider(1, 100, 10);
-  accSlider.position(50, 130);
+  accSlider.position(50, 170);
 
   reset();
+
+  timer = createP("timer");
+  setInterval(timeit, interval*1000);
+
 }
 
 function windowResized() {
@@ -48,18 +57,7 @@ function draw() {
 
   background(0);
 
-  fill("white");
-  textSize(15);
-  text('Rpm(' + rpmSlider.value() + ')' , rpmSlider.x  + rpmSlider.width , rpmSlider.y-rpmSlider.height/2);
-  text('Low rpm %(' + lowSlider.value() + ')' , lowSlider.x  + lowSlider.width , lowSlider.y-lowSlider.height/2);
-  text('High rpm %('+ highSlider.value() + ')', highSlider.x + highSlider.width, highSlider.y-highSlider.height/2);
-  text('Acc. %('+ accSlider.value() + ')' , accSlider.x  + accSlider.width , accSlider.y-accSlider.height/2);
-  text('Dec. %('+ decSlider.value() + ')' , decSlider.x  + decSlider.width , decSlider.y-decSlider.height/2);
-  text('Distance : ' + robot.distance, 50, 150);
-
-
-  fill("grey");
-  circle(width - ctrlsize/2,ctrlsize/2,ctrlsize);
+  draw_inputs();
 
   push(); // start a transformation matrix
   translate(width / 2, height / 2); // move to middle of screen
@@ -67,6 +65,7 @@ function draw() {
   scale(scl,scl*-1);
   
   robot.update();
+
   robot.move();
   robot.display();
 
@@ -74,7 +73,35 @@ function draw() {
 
 }
 
+function draw_inputs(){
+
+  // inputs text's
+  fill("white");
+  textSize(15);
+  text('Rpm(' + rpmSlider.value() + ')' , rpmSlider.x  + rpmSlider.width , rpmSlider.y-rpmSlider.height/2);
+  text('Low rpm %(' + lowSlider.value() + ')' , lowSlider.x  + lowSlider.width , lowSlider.y-lowSlider.height/2);
+  text('High rpm %('+ highSlider.value() + ')', highSlider.x + highSlider.width, highSlider.y-highSlider.height/2);
+  text('Acc. %('+ accSlider.value() + ')' , accSlider.x  + accSlider.width , accSlider.y-accSlider.height/2);
+  text('Dec. %('+ decSlider.value() + ')' , decSlider.x  + decSlider.width , decSlider.y-decSlider.height/2);
+  
+  // outputs
+  fill("white"); 
+  text("Linear speed(" + robot.linspeed + ")", 50, 200);
+  fill("red"); 
+  text("Heading", 50, 230);
+  fill("yellow"); 
+  text("Melty angle(" + robot.meltyAngle + "°)", 50, 260);
+  fill("green"); 
+  text("Real Angle", 50, 290);
+
+  // Control area
+  fill("grey");
+  circle(width - ctrlsize/2,ctrlsize/2,ctrlsize);
+
+}
+
 function mouseClicked(){
+  // Was the click in the circle
   if (dist(width - ctrlsize/2,ctrlsize/2,mouseX,mouseY) > ctrlsize) return;
 
   let distx = width - ctrlsize/2 - mouseX;
@@ -83,7 +110,20 @@ function mouseClicked(){
   let angle = degrees(Math.atan2(disty,distx)) + 180;
   if (angle < 0) angle += 360;
   angle = 360 - angle;
-  document.getElementById("meltyAngle").value = angle;
+  robot.meltyAngle = Math.round(angle);
+
+  // Save position
+  robot.ox = robot.px;
+  robot.oy = robot.py;
+}
+
+function timeit(){
+    robot.distance = Math.round(dist(robot.ox,robot.oy,robot.px,robot.py));
+    robot.linspeed = Math.round(robot.distance / interval);
+
+    // Save position
+    robot.ox = robot.px;
+    robot.oy = robot.py;
 }
 
 class Melty {
@@ -92,16 +132,21 @@ class Melty {
   this.py       = 0; // Y position
   this.heading  = 0; // Heading
   this.headingr = 0; // Heading radian
-  this.mx 	= 0; // X movement
-  this.my 	= 0; // Y movement
-  this.mo 	= 0; // angular movement
+  this.mx 	    = 0; // X movement
+  this.my 	    = 0; // Y movement
+  this.mo 	    = 0; // angular movement
   this.speedl   = 0; // Current speed left 
   this.speedr   = 0; // Current speed right
   this.cspeedl  = 0; // Commanded speed left 
   this.cspeedr  = 0; // Commanded speed right
   this.speedavg = 0; // Average speed
   this.distance = 0; // Distance
-  this.diff 	= 0; // Angle difference
+  this.diff 	  = 0; // Angle difference
+  this.ox       = 0; // X position at last direction change
+  this.oy       = 0; // Y position at last direction change
+  this.ot       = second(); // Time at last direction change 
+  this.pt       = 0; // Time since last direction chance
+  this.linspeed = 0;
 	 
   this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
   this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
@@ -124,7 +169,6 @@ class Melty {
     this.rpm        = rpmSlider.value();   // Speed rpm
     this.devhigh    = highSlider.value(); // % speed high
     this.devlow     = lowSlider.value(); // % speed low
-    this.meltyAngle = parseFloat(document.getElementById("meltyAngle").value);  // Commanded Angle
     this.accrate    = accSlider.value();  // Acceleration Rate %
     this.decrate    = decSlider.value();  // Deceleration Rate %
 	
@@ -178,8 +222,6 @@ class Melty {
 	this.mx = (this.radius/2) * (this.speedr + this.speedl) * Math.cos(this.headingr);
 	this.my = (this.radius/2) * (this.speedr + this.speedl) * Math.sin(this.headingr);
 	this.mo = (this.radius / this.diameter) * (this.speedr - this.speedl);	
-
-	this.distance = Math.round(dist(0,0,this.px,this.py));
 	
   }
 
@@ -190,8 +232,28 @@ class Melty {
     let sizeb  = this.diameter + ( this.radius * 2 );
 	
     translate(this.px,this.py);
+
+    // Draw vector for commanded angle
+    vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), sizeb*2);
+    stroke("yellow");
+    line(0,0,vmeltangle.x, vmeltangle.y);
+
+    // Draw vector for heading
+    vheading = p5.Vector.fromAngle(this.headingr, sizeb*2);
+    stroke("red");
+    line(0,0,vheading.x, vheading.y);
+
+    // Draw vector for real angle
+    vrealangle = createVector(this.px - this.ox,this.py - this.oy);
+    let dispangle = p5.Vector.fromAngle(vrealangle.heading(), sizeb*2);
+    stroke("green");
+    line(0,0,dispangle.x, dispangle.y);
+
+    
+
     rotate(this.headingr);
-	
+
+    stroke("black"); 
     fill("grey"); 
     circle(0,0,sizeb);
     
@@ -224,8 +286,6 @@ class Melty {
   <input type="number" id="diameter" size="5" value="22" step="1">
   <label for="name">Wheel Radius</label>
   <input type="number" id="radius" size="5" value="8.4" step=".1">
-  <label for="name">Melty Angle</label>
-  <input type="number" id="meltyAngle" size="5" value="0">
   <button type="button" onclick="reset()" >Reset</button>
   </body>
   <style>

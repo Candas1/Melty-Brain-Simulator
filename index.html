@@ -31,6 +31,8 @@ function setup() {
   accSlider = createSlider(1, 100, 10);
   accSlider.position(50, 170);
 
+  checkbox = createCheckbox('label', false);
+
   reset();
 
   timer = createP("timer");
@@ -88,29 +90,40 @@ function draw_inputs(){
   fill("white"); 
   text("Linear speed(" + robot.linspeed + ")", 50, 200);
   fill("red"); 
-  text("Heading", 50, 230);
+  text("Heading(" + Math.round(robot.heading) + "°)", 50, 230);
   fill("yellow"); 
   text("Melty angle(" + robot.meltyAngle + "°)", 50, 260);
   fill("green"); 
-  text("Real Angle", 50, 290);
+  text("Real Angle(" + robot.realAngle + "°)", 50, 290);
+  fill("blue"); 
+  text("State(" + robot.state + ")", 50, 320);
 
   // Control area
   fill("grey");
   circle(width - ctrlsize/2,ctrlsize/2,ctrlsize);
 
+  // Control area
+  fill("black");
+  circle(width - ctrlsize/2,ctrlsize/2,ctrlsize/2);
+
 }
 
 function mouseClicked(){
   // Was the click in the circle
-  if (dist(width - ctrlsize/2,ctrlsize/2,mouseX,mouseY) > ctrlsize) return;
+  if (dist(width - ctrlsize/2,ctrlsize/2,mouseX,mouseY) > ctrlsize/2) return;
+  if (dist(width - ctrlsize/2,ctrlsize/2,mouseX,mouseY) < ctrlsize/4){
+    robot.state = "SPIN";
+    robot.meltyAngle = 0;  
+  }else{
+    robot.state = "MELTY";
+    let distx = width - ctrlsize/2 - mouseX;
+    let disty = ctrlsize/2 - mouseY;
 
-  let distx = width - ctrlsize/2 - mouseX;
-  let disty = ctrlsize/2 - mouseY;
-
-  let angle = degrees(Math.atan2(disty,distx)) + 180;
-  if (angle < 0) angle += 360;
-  angle = 360 - angle;
-  robot.meltyAngle = Math.round(angle);
+    let angle = degrees(Math.atan2(disty,distx)) + 180;
+    if (angle < 0) angle += 360;
+    angle = 360 - angle;
+    robot.meltyAngle = Math.round(angle);
+  }
 
   // Save position
   robot.ox = robot.px;
@@ -144,9 +157,9 @@ class Melty {
   this.diff 	  = 0; // Angle difference
   this.ox       = 0; // X position at last direction change
   this.oy       = 0; // Y position at last direction change
-  this.ot       = second(); // Time at last direction change 
-  this.pt       = 0; // Time since last direction chance
+  this.realAngle = 0; // Real measured angle
   this.linspeed = 0;
+  this.state    = "SPIN"; // SPIN or MELTY
 	 
   this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
   this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
@@ -190,14 +203,19 @@ class Melty {
 
 	this.diff = 180 - abs(abs(this.meltyAngle - this.heading) - 180);
 
-	// Set commanded speed based on difference between commanded and robot angle
-	if (this.diff > 90){
-	  this.cspeedr = this.speedlow;
-	  this.cspeedl = this.speedhigh * -1;
-	}else{
-	  this.cspeedr = this.speedhigh;
-	  this.cspeedl = this.speedlow * -1;  
-	}
+  if ( this.state == "SPIN"){
+    this.cspeedr = this.wspeed;
+    this.cspeedl = this.wspeed * -1;
+  }else{
+    // Set commanded speed based on difference between commanded and robot angle
+    if (this.diff > 90){
+      this.cspeedr = this.speedlow;
+      this.cspeedl = this.speedhigh * -1;
+    }else{
+      this.cspeedr = this.speedhigh;
+      this.cspeedl = this.speedlow * -1;  
+    }
+  }
 
 	if (this.cspeedl < this.speedl){
 	  // Calculate Left wheel speed taking Acceleration rate into account
@@ -205,7 +223,7 @@ class Melty {
 	}else{
 	  // Calculate Left wheel speed taking Deceleration rate into account
 	  this.speedl = this.speedl - Math.max(this.speedl - this.cspeedl,this.decval * -1);
-	}
+  }
 
 	if (this.cspeedr < this.speedr){
 	  // Calculate Right wheel speed taking Acceleration rate into account
@@ -213,7 +231,9 @@ class Melty {
 	}else{
 	  // Calculate Right wheel speed taking Deceleration rate into account
 	  this.speedr = this.speedr - Math.min(this.speedr - this.cspeedr,this.decval);
-	}
+  }
+
+  if (this.rpm == 0) this.speedl = this.speedr = 0;
 
 	// Average Speed
 	this.speedavg = ( abs(this.speedr) + abs(this.speedl) )/ 2;
@@ -233,22 +253,24 @@ class Melty {
 	
     translate(this.px,this.py);
 
-    // Draw vector for commanded angle
-    vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), sizeb*2);
-    stroke("yellow");
-    line(0,0,vmeltangle.x, vmeltangle.y);
+    if ( this.state == "MELTY"){
+      // Draw vector for commanded angle
+      vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), sizeb*2);
+      stroke("yellow");
+      line(0,0,vmeltangle.x, vmeltangle.y);
+
+      // Draw vector for real angle
+      vrealangle = createVector(this.px - this.ox,this.py - this.oy);
+      let dispangle = p5.Vector.fromAngle(vrealangle.heading(), sizeb*2);
+      stroke("green");
+      line(0,0,dispangle.x, dispangle.y);
+      this.realAngle = Math.round(degrees(vrealangle.heading()));
+    }
 
     // Draw vector for heading
     vheading = p5.Vector.fromAngle(this.headingr, sizeb*2);
     stroke("red");
     line(0,0,vheading.x, vheading.y);
-
-    // Draw vector for real angle
-    vrealangle = createVector(this.px - this.ox,this.py - this.oy);
-    let dispangle = p5.Vector.fromAngle(vrealangle.heading(), sizeb*2);
-    stroke("green");
-    line(0,0,dispangle.x, dispangle.y);
-
     
 
     rotate(this.headingr);

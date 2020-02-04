@@ -3,32 +3,29 @@
   <script src="https://cdn.jsdelivr.net/npm/p5@0.10.2/lib/p5.js"></script>
 <script>
 
-let robot;
-let scl = 2;
-let ctrlsize = 200;
-let vheading;
-let vmeltangle;
-let vrealangle;
-let timer;
-let interval = 1;
+var scl = 2;
+var move_interval = 1;
+var measure_interval = 1000;
+var counter = 0;
+var robot;
+var ctrl;
+var graph;
+var timer;
+
 
 function setup() {
 
-  var cnv = createCanvas(windowWidth-50, windowHeight-50);
-  //cnv.style('display', 'block');
-  ctrl = new Control(50 + ctrlsize/2,ctrlsize/2 + 10,ctrlsize);
-
-  reset();
+  cnv = createCanvas(windowWidth-50, windowHeight-50);
+  ctrl = new Control(150,210,200);
+  graph = new Graph(0,0,width,100,100);
   
-  timer = createP("timer");
-  setInterval(timeit, interval*1000);
-
-}
-
-function reset(){
-  background(0);// clear the screen
-  robot = new Melty();
+  robot = new Robot();
   robot.update();
+  
+  frameRate(60);
+  
+  setInterval(timeit, move_interval);
+
 }
 
 function windowResized() {
@@ -36,21 +33,16 @@ function windowResized() {
 }
 
 function mouseWheel(event) {
-  scl += event.delta * 0.001;
+  scl *= (event.delta > 0 ) ? 1.1 : 0.90;
   return false;
 }
 
 function draw() {
-
   background(0);
   grid();
-  
-  robot.update();
-  robot.move();
   robot.display();
-
   ctrl.display();
-
+  graph.display();
 }
 
 function grid() {
@@ -63,21 +55,84 @@ function grid() {
   }
 }
 
+function mapval( x,  in_min,  in_max,  out_min,  out_max){
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
 function mouseClicked(){
   ctrl.clicked(mouseX,mouseY);
 }
 
 function timeit(){
-    // calculate speed every second
-    robot.distance = Math.round(dist(robot.ox,robot.oy,robot.px,robot.py));
-    robot.linspeed = Math.round(robot.distance / interval);
 
-    // Save position
-    robot.ox = robot.px;
-    robot.oy = robot.py;
+  if (counter > (measure_interval/move_interval)){
+    robot.measure();
+	counter = 0;
+  }
+  robot.update();
+  robot.move();
+  counter++;
 }
 
-
+class Graph{
+  constructor(px,py,pwidth,pheight,ppoints){
+    this.x = px;
+	this.y = py;
+	this.width = pwidth;
+	this.height = pheight;
+	this.points = ppoints;
+	this.spacing = 1.2;
+	this.min = 0;
+	this.max = 0;	
+	this.data = [];
+  }
+  add_data(pchannel,pvalue,pcolor){
+    if ( (pchannel in this.data) == false ) {
+      this.data[pchannel] = [];
+      this.data[pchannel]["values"] = new Array(this.points).fill(0);	 
+  	  this.data[pchannel]["color"] = "white";
+      this.data[pchannel]["display"] = true;	 
+    }
+   
+    this.data[pchannel].color = pcolor;
+    this.data[pchannel].values.shift();
+    this.data[pchannel].values.push(pvalue);
+  }
+  display(){
+    fill("black");stroke("grey");
+    rect(this.x,this.y, this.width , this.height);
+    
+	// find min and max for all displayed channels
+    this.min = this.max = 0;
+    for(var channel in this.data) {
+      if (!this.data[channel].display) continue;
+	  this.max = Math.max( this.max, Math.max.apply(null,this.data[channel].values));
+	  this.min = Math.min( this.min, Math.min.apply(null,this.data[channel].values));
+    }	
+	
+	stroke("grey");
+	if (this.min <= 0 && this.max >=0) line(this.x, this.height / 2 , this.x + this.width , this.height / 2);
+    
+    strokeWeight(2);
+    for(let channel in this.data) {
+      if (!this.data[channel].display) continue;
+      let px = this.x + 1;
+      let py = this.height;
+      for(let i = 0; i < this.data[channel].values.length; i++){
+	    let x = this.x + (i * this.width / (this.points-1));
+	    let y = this.height - mapval(this.data[channel].values[i],this.min*this.spacing,this.max*this.spacing,0,100);
+	    stroke(this.data[channel].color);
+	    line(px, py, x, y);
+		circle(x,y,3);
+		
+        //store the last position
+	    px = x;
+	    py = y;
+    }	
+  }
+  strokeWeight(1);
+}
+}
 class Control{
   constructor(px,py,psize){
     this.x = px;
@@ -87,42 +142,47 @@ class Control{
     this.radius = this.size/2;
     this.inradius = this.radius/2;
     this.rpmSlider = createSlider(0, 1000, 1);
-    this.rpmSlider.position(50, 250);
+    this.rpmSlider.position(50, 350);
     
     this.lowSlider = createSlider(0, 100, 10);
-    this.lowSlider.position(50, 280);
+    this.lowSlider.position(50, 380);
     this.highSlider = createSlider(0, 100, 10);
-    this.highSlider.position(50, 310);
+    this.highSlider.position(50, 410);
     
     this.decSlider = createSlider(1, 100, 10);
-    this.decSlider.position(50, 340);
+    this.decSlider.position(50, 440);
     this.accSlider = createSlider(1, 100, 10);
-    this.accSlider.position(50, 370);
-    this.rstbut = createButton('Reset');
-    this.rstbut.position(250,50);
-    this.rstbut.mousePressed(reset);
+    this.accSlider.position(50, 470);
   }
   display(){
-    fill("black");
+    
+    fill("black");stroke("grey");
     rect(0,0, 300 , height);
       
     // Control area
-    fill("grey");
+    fill("grey");stroke("grey");
     circle(this.x,this.y,this.size);
 
+    text(Math.round(frameRate()) + "fps", 20, 120);
+	
     // SPIN area
-    fill("black");
+    fill("black");stroke("black");
     circle(this.x,this.y,this.insize);
 
     // State
-    fill("blue");
+    fill("blue");stroke("blue");
     textSize(28);
     textAlign(CENTER,CENTER);
     text(robot.state, this.x, this.y);
 
+    if (robot.state == 'MELTY'){
+      fill("yellow");stroke("yellow"); 
+      text(robot.meltyAngle + "°", this.x, this.y + 30);
+    }
+
     // Input texts
     textAlign(LEFT,CENTER);
-    fill("white");
+    fill("white");stroke("black");
     textSize(15);
     text('Rpm(' + ctrl.rpmSlider.value() + ')' , ctrl.rpmSlider.x  + ctrl.rpmSlider.width , ctrl.rpmSlider.y - ctrl.rpmSlider.height/2);
     text('Low rpm %(' + ctrl.lowSlider.value() + ')' , ctrl.lowSlider.x  + ctrl.lowSlider.width , ctrl.lowSlider.y - ctrl.lowSlider.height/2);
@@ -131,14 +191,12 @@ class Control{
     text('Dec. %('+ ctrl.decSlider.value() + ')' , ctrl.decSlider.x  + ctrl.decSlider.width , ctrl.decSlider.y - ctrl.decSlider.height/2);
     
     // Metrics
-    fill("white"); 
-    text("Linear speed(" + robot.linspeed + ")", 50, 400);
+    text("Linear speed(" + robot.linspeed + ")", 50, 500);
     fill("red"); 
-    text("Heading(" + Math.round(robot.heading) + "°)", 50, 430);
-    fill("yellow"); 
-    text("Melty angle(" + robot.meltyAngle + "°)", 50, 460);
+    text("Heading(" + Math.round(robot.heading) + "°)", 50, 530);
     fill("green"); 
-    text("Real Angle(" + robot.realAngle + "°)", 50, 490);
+    text("Real Angle(" + robot.realAngle + "°)", 50, 560);
+
   }
   clicked(mouseX,mouseY){
   
@@ -149,7 +207,8 @@ class Control{
       // Click in inner area
       robot.state = "SPIN";
       robot.meltyAngle = 0;
-      robot.realAngle = 0; 
+      robot.realAngle = 0;
+      robot.reset();	  
     }else{
       // Click in outer area
       robot.state = "MELTY";
@@ -166,7 +225,7 @@ class Control{
   }
 }
 
-class Melty {
+class Robot {
   constructor() {
   this.px       = 0; // X position
   this.py       = 0; // Y position
@@ -202,26 +261,45 @@ class Melty {
   this.speedlow   = 0; // Speed low
   this.accval     = 0; // Speed increment
   this.deccal     = 0; // Speed decrement
-
+  this.leftwcol   = "black"; // Left wheel color
+  this.rightwcol  = "black"; // Right wheel color
+ 
   this.wheight = this.radius * 2; // Wheel height
   this.wwidth  = this.radius;  // Wheel width
   this.rsize   = this.diameter + ( this.wwidth * 2 ); // Robot diameter
-	
+  }
+  
+  reset(){
+    this.px       = 0; // X position
+    this.py       = 0; // Y position 
   }
   
   update(){
-    this.rpm        = ctrl.rpmSlider.value();   // Speed rpm
+    this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
+    this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
+	
+	this.rpm        = ctrl.rpmSlider.value();   // Speed rpm
     this.devhigh    = ctrl.highSlider.value(); // % speed high
     this.devlow     = ctrl.lowSlider.value(); // % speed low
     this.accrate    = ctrl.accSlider.value();  // Acceleration Rate %
     this.decrate    = ctrl.decSlider.value();  // Deceleration Rate %
 	
-    this.wspeed = this.rpm * 2 * PI * this.radius / 60 / 60; // wheel speed centimeter
+    this.wspeed = this.rpm * 2 * PI * this.radius / 60 / (1000/move_interval); // wheel speed centimeter
 	
     this.speedhigh = this.wspeed + (this.wspeed * this.devhigh / 100); // Speed high
     this.speedlow  = this.wspeed - (this.wspeed * this.devlow  / 100); // Speed low
     this.accval    = this.wspeed * this.accrate / 100; // Speed increment 
     this.decval    = this.wspeed * this.decrate / 100; // Speed decrement
+  }
+  
+  measure(){
+    // calculate speed every second
+    this.distance = Math.round(dist(this.ox,this.oy,this.px,this.py));
+    this.linspeed = Math.round(this.distance / measure_interval);
+
+    // Save position
+    this.ox = this.px;
+    this.oy = this.py;
   }
 
   move() {
@@ -229,37 +307,39 @@ class Melty {
     this.px += this.mx;
     this.py += this.my;
     this.headingr = (this.headingr + this.mo) % (2 * PI);
-    this.heading  = degrees(this.headingr);
-
-    this.diff = 180 - abs(abs(this.meltyAngle - this.heading) - 180);
+    this.heading  = degrees(this.headingr);    
 
     if ( this.state == "SPIN"){
       this.cspeedr = this.wspeed;
       this.cspeedl = this.wspeed * -1;
+	  this.leftwcol = this.rightwcol = "green";
     }else{
       // Set commanded speed based on difference between commanded and robot angle
+	  this.diff = 180 - abs(abs(this.meltyAngle - this.heading) - 180);
       if (this.diff > 90){
         this.cspeedr = this.speedlow;
         this.cspeedl = this.speedhigh * -1;
+		this.rightwcol = "red";
+		this.leftwcol  = "green";
       }else{
         this.cspeedr = this.speedhigh;
-        this.cspeedl = this.speedlow * -1;  
+        this.cspeedl = this.speedlow * -1;
+        this.rightwcol = "green";
+		this.leftwcol  = "red";		
       }
     }
 
-    if (this.cspeedl < this.speedl){
-      // Calculate Left wheel speed taking Acceleration rate into account
+    // Calculate Left wheel speed taking Acceleration/Deceleration rate into account
+    if (this.cspeedl < this.speedl){      
       this.speedl = this.speedl + Math.max(this.cspeedl - this.speedl,this.accval * -1);
-    }else{
-      // Calculate Left wheel speed taking Deceleration rate into account
+    }else{      
       this.speedl = this.speedl - Math.max(this.speedl - this.cspeedl,this.decval * -1);
     }
 
-    if (this.cspeedr < this.speedr){
-      // Calculate Right wheel speed taking Acceleration rate into account
+    // Calculate Right wheel speed taking Acceleration/Deceleration rate into account
+    if (this.cspeedr > this.speedr){      
       this.speedr = this.speedr + Math.min(this.cspeedr - this.speedr,this.accval);
-    }else{
-      // Calculate Right wheel speed taking Deceleration rate into account
+    }else{      
       this.speedr = this.speedr - Math.min(this.speedr - this.cspeedr,this.decval);
     }
 
@@ -267,6 +347,12 @@ class Melty {
 
     // Average Speed
     this.speedavg = ( abs(this.speedr) + abs(this.speedl) )/ 2;
+	
+	// Feed graph data
+    graph.add_data("Speedr",this.speedr,"red");
+	graph.add_data("Speedl",this.speedl,"blue");
+	graph.add_data("CSpeedr",this.cspeedr,"green");
+	graph.add_data("CSpeedl",this.cspeedl,"yellow");
 
     //Calculate movements
     this.mx = (this.radius/2) * (this.speedr + this.speedl) * Math.cos(this.headingr);
@@ -286,20 +372,21 @@ class Melty {
 
     if ( this.state == "MELTY"){
       // Draw vector for commanded angle
-      vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), this.rsize*2);
+      let vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), this.rsize*2);
       stroke("yellow");
       line(0,0,vmeltangle.x, vmeltangle.y);
 
       // Draw vector for real angle
-      vrealangle = createVector(this.px - this.ox,this.py - this.oy);
-      let dispangle = p5.Vector.fromAngle(vrealangle.heading(), this.rsize*2);
+      let vrealangle = createVector(this.px - this.ox,this.py - this.oy);
+      vrealangle.setMag(this.rsize*2);
       stroke("green");
-      line(0,0,dispangle.x, dispangle.y);
-      this.realAngle = Math.round(degrees(vrealangle.heading()));
+      line(0,0,vrealangle.x, vrealangle.y);
+      this.realAngle = Math.round(degrees(vrealangle.heading())) % 360;
+      if (this.realAngle<0) this.realAngle += 360;
     }
 
     // Draw vector for heading
-    vheading = p5.Vector.fromAngle(this.headingr, this.rsize*2);
+    let vheading = p5.Vector.fromAngle(this.headingr, this.rsize*2);
     stroke("red");
     line(0,0,vheading.x, vheading.y);
     
@@ -309,14 +396,13 @@ class Melty {
     fill("grey"); 
     circle(0,0,this.rsize);
     
-    // Draw wheels
-    fill( (this.diff > 90) ? "green" : "red" );
-    rect( 0 - this.wheight/2 , this.diameter/2 - this.wwidth/2 , this.wheight , this.wwidth );
-    fill( (this.diff > 90) ? "red" : "green" );
-    rect( 0 - this.wheight/2 , 0 - this.diameter/2 - this.wwidth/2 , this.wheight , this.wwidth );
+	// Draw wheels
+	fill( this.leftwcol );
+	rect( 0 - this.wheight/2 , this.diameter/2 - this.wwidth/2 , this.wheight , this.wwidth );
+    fill( this.rightwcol );
+	rect( 0 - this.wheight/2 , 0 - this.diameter/2 - this.wwidth/2 , this.wheight , this.wwidth );
     
     // LED
-    
     if (this.heading >= 350 || this.heading <= 10){
       stroke("Red");
       fill("red");

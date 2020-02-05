@@ -11,16 +11,19 @@ var robot;
 var ctrl;
 var graph;
 var timer;
-
+var ggrid;
+var pause = false;
 
 function setup() {
-
+  
   cnv = createCanvas(windowWidth-50, windowHeight-50);
   ctrl = new Control(150,210,200);
   graph = new Graph(0,0,width,100,100);
   
   robot = new Robot();
   robot.update();
+  
+  generate_grid(300,100);
   
   frameRate(60);
   
@@ -39,18 +42,19 @@ function mouseWheel(event) {
 
 function draw() {
   background(0);
-  grid();
+  image(ggrid, 0, 0, width, height);
   robot.display();
   ctrl.display();
   graph.display();
 }
 
-function grid() {
-  stroke("grey");
-  for (var x = 0; x < width; x += 20) {
-    line(x, 0, x, height);
-    for (var y = 0; y < height; y += 20) {
-      line(0, y, width, y);
+function generate_grid(px,py) {
+  ggrid = createGraphics(windowWidth-50, windowHeight-50);
+  ggrid.stroke("grey");
+  for (var x = px; x < width; x += 20) {
+    ggrid.line(x, py, x, height);
+    for (var y = py; y < height; y += 20) {
+      ggrid.line(px, y, width, y);
     }
   }
 }
@@ -64,7 +68,6 @@ function mouseClicked(){
 }
 
 function timeit(){
-
   if (counter > (measure_interval/move_interval)){
     robot.measure();
 	counter = 0;
@@ -85,13 +88,14 @@ class Graph{
 	this.min = 0;
 	this.max = 0;	
 	this.data = [];
+	this.graphics = createGraphics(this.width,this.height);
   }
-  add_data(pchannel,pvalue,pcolor){
+  add_data(pchannel,pvalue,pcolor,pdisplay){
     if ( (pchannel in this.data) == false ) {
       this.data[pchannel] = [];
       this.data[pchannel]["values"] = new Array(this.points).fill(0);	 
   	  this.data[pchannel]["color"] = "white";
-      this.data[pchannel]["display"] = true;	 
+      this.data[pchannel]["display"] = pdisplay;	 
     }
    
     this.data[pchannel].color = pcolor;
@@ -99,8 +103,7 @@ class Graph{
     this.data[pchannel].values.push(pvalue);
   }
   display(){
-    fill("black");stroke("grey");
-    rect(this.x,this.y, this.width , this.height);
+    this.graphics.background(0);
     
 	// find min and max for all displayed channels
     this.min = this.max = 0;
@@ -110,27 +113,27 @@ class Graph{
 	  this.min = Math.min( this.min, Math.min.apply(null,this.data[channel].values));
     }	
 	
-	stroke("grey");
-	if (this.min <= 0 && this.max >=0) line(this.x, this.height / 2 , this.x + this.width , this.height / 2);
-    
-    strokeWeight(2);
+	this.graphics.stroke("grey");
+	if (this.min <= 0 && this.max >=0) this.graphics.line(this.x, this.height / 2 , this.x + this.width , this.height / 2);
+
+    this.graphics.strokeWeight(2);
     for(let channel in this.data) {
       if (!this.data[channel].display) continue;
-      let px = this.x + 1;
-      let py = this.height;
+      let px1 = this.x + 1;
+      let py1 = this.height;
       for(let i = 0; i < this.data[channel].values.length; i++){
-	    let x = this.x + (i * this.width / (this.points-1));
-	    let y = this.height - mapval(this.data[channel].values[i],this.min*this.spacing,this.max*this.spacing,0,100);
-	    stroke(this.data[channel].color);
-	    line(px, py, x, y);
-		circle(x,y,3);
+	    let px2 = this.x + (i * this.width / (this.points-1));
+	    let py2 = this.height - mapval(this.data[channel].values[i],this.min*this.spacing,this.max*this.spacing,0,100);
+	    this.graphics.stroke(this.data[channel].color);
+	    this.graphics.line(px1, py1, px2, py2);
+		//this.graphics.circle(px2,py2,3);
 		
         //store the last position
-	    px = x;
-	    py = y;
-    }	
-  }
-  strokeWeight(1);
+	    px1 = px2;
+	    py1 = py2;
+      }
+    }
+	image(this.graphics, 0, 0, this.width, this.height);
 }
 }
 class Control{
@@ -153,49 +156,53 @@ class Control{
     this.decSlider.position(50, 440);
     this.accSlider = createSlider(1, 100, 10);
     this.accSlider.position(50, 470);
+	this.graphics = createGraphics(300,height);
   }
   display(){
     
-    fill("black");stroke("grey");
-    rect(0,0, 300 , height);
+    this.graphics.fill("black");this.graphics.stroke("grey");
+    this.graphics.rect(0,0, 300 , height);
       
     // Control area
-    fill("grey");stroke("grey");
-    circle(this.x,this.y,this.size);
+    this.graphics.fill("grey");this.graphics.stroke("grey");
+    this.graphics.circle(this.x,this.y,this.size);
 
-    text(Math.round(frameRate()) + "fps", 20, 120);
+    this.graphics.text(Math.round(frameRate()) + "fps", 20, 120);
 	
     // SPIN area
-    fill("black");stroke("black");
-    circle(this.x,this.y,this.insize);
+    this.graphics.fill("black");this.graphics.stroke("black");
+    this.graphics.circle(this.x,this.y,this.insize);
 
     // State
-    fill("blue");stroke("blue");
-    textSize(28);
-    textAlign(CENTER,CENTER);
-    text(robot.state, this.x, this.y);
+    this.graphics.fill("blue");this.graphics.stroke("blue");
+    this.graphics.textSize(28);
+    this.graphics.textAlign(CENTER,CENTER);
+    this.graphics.text(robot.state, this.x, this.y);
 
     if (robot.state == 'MELTY'){
-      fill("yellow");stroke("yellow"); 
-      text(robot.meltyAngle + "°", this.x, this.y + 30);
+      this.graphics.fill("yellow");this.graphics.stroke("yellow"); 
+      this.graphics.text(robot.meltyAngle + "°", this.x, this.y + 30);
     }
 
     // Input texts
-    textAlign(LEFT,CENTER);
-    fill("white");stroke("black");
-    textSize(15);
-    text('Rpm(' + ctrl.rpmSlider.value() + ')' , ctrl.rpmSlider.x  + ctrl.rpmSlider.width , ctrl.rpmSlider.y - ctrl.rpmSlider.height/2);
-    text('Low rpm %(' + ctrl.lowSlider.value() + ')' , ctrl.lowSlider.x  + ctrl.lowSlider.width , ctrl.lowSlider.y - ctrl.lowSlider.height/2);
-    text('High rpm %('+ ctrl.highSlider.value() + ')', ctrl.highSlider.x + ctrl.highSlider.width, ctrl.highSlider.y - ctrl.highSlider.height/2);
-    text('Acc. %('+ ctrl.accSlider.value() + ')' , ctrl.accSlider.x  + ctrl.accSlider.width , ctrl.accSlider.y - ctrl.accSlider.height/2);
-    text('Dec. %('+ ctrl.decSlider.value() + ')' , ctrl.decSlider.x  + ctrl.decSlider.width , ctrl.decSlider.y - ctrl.decSlider.height/2);
+    this.graphics.textAlign(LEFT,CENTER);
+    this.graphics.fill("white");this.graphics.stroke("black");
+    this.graphics.textSize(15);
+    this.graphics.text('Rpm(' + ctrl.rpmSlider.value() + ')' , ctrl.rpmSlider.x  + ctrl.rpmSlider.width , ctrl.rpmSlider.y - ctrl.rpmSlider.height/2);
+    this.graphics.text('Low rpm %(' + ctrl.lowSlider.value() + ')' , ctrl.lowSlider.x  + ctrl.lowSlider.width , ctrl.lowSlider.y - ctrl.lowSlider.height/2);
+    this.graphics.text('High rpm %('+ ctrl.highSlider.value() + ')', ctrl.highSlider.x + ctrl.highSlider.width, ctrl.highSlider.y - ctrl.highSlider.height/2);
+    this.graphics.text('Acc. %('+ ctrl.accSlider.value() + ')' , ctrl.accSlider.x  + ctrl.accSlider.width , ctrl.accSlider.y - ctrl.accSlider.height/2);
+    this.graphics.text('Dec. %('+ ctrl.decSlider.value() + ')' , ctrl.decSlider.x  + ctrl.decSlider.width , ctrl.decSlider.y - ctrl.decSlider.height/2);
     
     // Metrics
-    text("Linear speed(" + robot.linspeed + ")", 50, 500);
-    fill("red"); 
-    text("Heading(" + Math.round(robot.heading) + "°)", 50, 530);
-    fill("green"); 
-    text("Real Angle(" + robot.realAngle + "°)", 50, 560);
+	let count = 0;
+	for(let channel in graph.data) {	   
+	   this.graphics.fill(graph.data[channel].color); 
+	   this.graphics.text(channel + "(" + Math.round(graph.data[channel].values[graph.data[channel].values.length - 1]) + ")"  , 50, count * 30 + 500);	
+	   count++;
+	}
+	
+    image(this.graphics, 0, 0, 300, this.height);
 
   }
   clicked(mouseX,mouseY){
@@ -278,9 +285,9 @@ class Robot {
     this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
     this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
 	
-	this.rpm        = ctrl.rpmSlider.value();   // Speed rpm
+	this.rpm        = ctrl.rpmSlider.value();  // Speed rpm
     this.devhigh    = ctrl.highSlider.value(); // % speed high
-    this.devlow     = ctrl.lowSlider.value(); // % speed low
+    this.devlow     = ctrl.lowSlider.value();  // % speed low
     this.accrate    = ctrl.accSlider.value();  // Acceleration Rate %
     this.decrate    = ctrl.decSlider.value();  // Deceleration Rate %
 	
@@ -303,6 +310,7 @@ class Robot {
   }
 
   move() {
+    if (pause) return;
     // Calculate position based on previous movements
     this.px += this.mx;
     this.py += this.my;
@@ -349,10 +357,12 @@ class Robot {
     this.speedavg = ( abs(this.speedr) + abs(this.speedl) )/ 2;
 	
 	// Feed graph data
-    graph.add_data("Speedr",this.speedr,"red");
-	graph.add_data("Speedl",this.speedl,"blue");
-	graph.add_data("CSpeedr",this.cspeedr,"green");
-	graph.add_data("CSpeedl",this.cspeedl,"yellow");
+    graph.add_data("Speed right",this.speedr,"pink",true);
+	graph.add_data("Speed left",this.speedl,"blue",true);
+	graph.add_data("Cmd right",this.cspeedr,"green",true);
+	graph.add_data("Cmd left",this.cspeedl,"white",true);
+	graph.add_data("Heading",this.heading,"red",false);
+	graph.add_data("Melty Angle",this.meltyAngle,"yellow",false);
 
     //Calculate movements
     this.mx = (this.radius/2) * (this.speedr + this.speedl) * Math.cos(this.headingr);

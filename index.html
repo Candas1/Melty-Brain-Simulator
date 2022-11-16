@@ -13,21 +13,43 @@ var graph;
 var timer;
 var ggrid;
 var pause = false;
+  
 
 function setup() {
   
   cnv = createCanvas(windowWidth-50, windowHeight-50);
   ctrl = new Control(150,210,200);
-  graph = new Graph(0,0,width,100,100);
+  graph = new Graph(300,0,width,100,100);
   
   robot = new Robot();
   robot.update();
-  
-  generate_grid(300,100);
+
+  ggrid = createGraphics(windowWidth-50, windowHeight-50);   
+  generate_grid(300,0);
   
   frameRate(60);
   
   setInterval(timeit, move_interval);
+
+}
+
+function keyPressed(){
+  if (keyCode === LEFT_ARROW) {
+    robot.state = "MELTY";
+	robot.meltyAngle = 180;
+  }
+  if (keyCode === RIGHT_ARROW) {
+    robot.state = "MELTY";
+	robot.meltyAngle = 0;
+  }
+  if (keyCode === UP_ARROW) {
+    robot.state = "MELTY";
+	robot.meltyAngle = 90;
+  }
+  if (keyCode === DOWN_ARROW) {
+    robot.state = "MELTY";
+	robot.meltyAngle = 270;
+  }
 
 }
 
@@ -41,15 +63,15 @@ function mouseWheel(event) {
 }
 
 function draw() {
-  background(0);
-  image(ggrid, 0, 0, width, height);
+  image(ggrid, 0, 0, width, height); 
   robot.display();
   ctrl.display();
-  graph.display();
+  if (ctrl.graphCheckbox.checked()) graph.display();
 }
 
 function generate_grid(px,py) {
-  ggrid = createGraphics(windowWidth-50, windowHeight-50);
+  // Draw grid in graphics
+  ggrid.background(0);
   ggrid.stroke("grey");
   for (var x = px; x < width; x += 20) {
     ggrid.line(x, py, x, height);
@@ -126,7 +148,6 @@ class Graph{
 	    let py2 = this.height - mapval(this.data[channel].values[i],this.min*this.spacing,this.max*this.spacing,0,100);
 	    this.graphics.stroke(this.data[channel].color);
 	    this.graphics.line(px1, py1, px2, py2);
-		//this.graphics.circle(px2,py2,3);
 		
         //store the last position
 	    px1 = px2;
@@ -156,15 +177,23 @@ class Control{
     this.decSlider.position(50, 440);
     this.accSlider = createSlider(1, 100, 10);
     this.accSlider.position(50, 470);
+	
+	this.graphCheckbox = createCheckbox("Graph",false);
+	this.graphCheckbox.position(50, 500);
+	this.graphCheckbox.style("color","white");
+	
 	this.graphics = createGraphics(300,height);
+ 
   }
   display(){
     
-    this.graphics.fill("black");this.graphics.stroke("grey");
+    this.graphics.fill("black");
+	this.graphics.stroke("grey");
     this.graphics.rect(0,0, 300 , height);
       
     // Control area
-    this.graphics.fill("grey");this.graphics.stroke("grey");
+    this.graphics.fill("grey");
+	this.graphics.stroke("grey");
     this.graphics.circle(this.x,this.y,this.size);
 
     this.graphics.text(Math.round(frameRate()) + "fps", 20, 120);
@@ -174,33 +203,36 @@ class Control{
     this.graphics.circle(this.x,this.y,this.insize);
 
     // State
-    this.graphics.fill("blue");this.graphics.stroke("blue");
+    this.graphics.fill("blue");
+	this.graphics.stroke("blue");
     this.graphics.textSize(28);
     this.graphics.textAlign(CENTER,CENTER);
     this.graphics.text(robot.state, this.x, this.y);
 
     if (robot.state == 'MELTY'){
-      this.graphics.fill("yellow");this.graphics.stroke("yellow"); 
+      this.graphics.fill("yellow");
+	  this.graphics.stroke("yellow"); 
       this.graphics.text(robot.meltyAngle + "°", this.x, this.y + 30);
     }
 
     // Input texts
     this.graphics.textAlign(LEFT,CENTER);
-    this.graphics.fill("white");this.graphics.stroke("black");
+    this.graphics.fill("white");
+	this.graphics.stroke("black");
     this.graphics.textSize(15);
-    this.graphics.text('Rpm(' + ctrl.rpmSlider.value() + ')' , ctrl.rpmSlider.x  + ctrl.rpmSlider.width , ctrl.rpmSlider.y - ctrl.rpmSlider.height/2);
+	this.graphics.text('Rpm(' + ctrl.rpmSlider.value() + ')' , ctrl.rpmSlider.x  + ctrl.rpmSlider.width , ctrl.rpmSlider.y - ctrl.rpmSlider.height/2);
     this.graphics.text('Low rpm %(' + ctrl.lowSlider.value() + ')' , ctrl.lowSlider.x  + ctrl.lowSlider.width , ctrl.lowSlider.y - ctrl.lowSlider.height/2);
     this.graphics.text('High rpm %('+ ctrl.highSlider.value() + ')', ctrl.highSlider.x + ctrl.highSlider.width, ctrl.highSlider.y - ctrl.highSlider.height/2);
     this.graphics.text('Acc. %('+ ctrl.accSlider.value() + ')' , ctrl.accSlider.x  + ctrl.accSlider.width , ctrl.accSlider.y - ctrl.accSlider.height/2);
     this.graphics.text('Dec. %('+ ctrl.decSlider.value() + ')' , ctrl.decSlider.x  + ctrl.decSlider.width , ctrl.decSlider.y - ctrl.decSlider.height/2);
-    
-    // Metrics
-	let count = 0;
-	for(let channel in graph.data) {	   
-	   this.graphics.fill(graph.data[channel].color); 
-	   this.graphics.text(channel + "(" + Math.round(graph.data[channel].values[graph.data[channel].values.length - 1]) + ")"  , 50, count * 30 + 500);	
-	   count++;
-	}
+	
+    // Display Metrics
+	//let count = 0;
+	//for(let channel in graph.data) {	   
+	//   this.graphics.fill(graph.data[channel].color); 
+	//   this.graphics.text(channel + "(" + Math.round(graph.data[channel].values[graph.data[channel].values.length - 1]) + ")"  , 50, count * 30);	
+	//   count++;
+	//}
 	
     image(this.graphics, 0, 0, 300, this.height);
 
@@ -215,9 +247,10 @@ class Control{
       robot.state = "SPIN";
       robot.meltyAngle = 0;
       robot.realAngle = 0;
-      robot.reset();	  
+      robot.reset();
+	  generate_grid(300,0);
     }else{
-      // Click in outer area
+      // Click in oute area
       robot.state = "MELTY";
       let angle = degrees(Math.atan2(this.y - mouseY,this.x - mouseX)) + 180;
       if (angle < 0) angle += 360;
@@ -285,6 +318,10 @@ class Robot {
     this.diameter   = parseFloat(document.getElementById("diameter").value);   // Distance between wheel
     this.radius     = parseFloat(document.getElementById("radius").value);   // Wheel Radius
 	
+	this.wheight = this.radius * 2; // Wheel height
+    this.wwidth  = this.radius;  // Wheel width
+    this.rsize   = this.diameter + ( this.wwidth * 2 ); // Robot diameter
+  
 	this.rpm        = ctrl.rpmSlider.value();  // Speed rpm
     this.devhigh    = ctrl.highSlider.value(); // % speed high
     this.devlow     = ctrl.lowSlider.value();  // % speed low
@@ -384,15 +421,15 @@ class Robot {
       // Draw vector for commanded angle
       let vmeltangle = p5.Vector.fromAngle(radians(this.meltyAngle), this.rsize*2);
       stroke("yellow");
-      line(0,0,vmeltangle.x, vmeltangle.y);
+      line(-vmeltangle.x*2,-vmeltangle.y*2,vmeltangle.x*2, vmeltangle.y*2);
 
       // Draw vector for real angle
-      let vrealangle = createVector(this.px - this.ox,this.py - this.oy);
-      vrealangle.setMag(this.rsize*2);
-      stroke("green");
-      line(0,0,vrealangle.x, vrealangle.y);
-      this.realAngle = Math.round(degrees(vrealangle.heading())) % 360;
-      if (this.realAngle<0) this.realAngle += 360;
+      //let vrealangle = createVector(this.px - this.ox,this.py - this.oy);
+      //vrealangle.setMag(this.rsize*2);
+      //stroke("green");
+      //line(0,0,vrealangle.x, vrealangle.y);
+      //this.realAngle = Math.round(degrees(vrealangle.heading())) % 360;
+      //if (this.realAngle<0) this.realAngle += 360;
     }
 
     // Draw vector for heading
@@ -414,7 +451,7 @@ class Robot {
     
     // LED
     if (this.heading >= 350 || this.heading <= 10){
-      stroke("Red");
+      stroke("red");
       fill("red");
     }else{
       noStroke();
@@ -422,7 +459,17 @@ class Robot {
     }
     circle(0 + this.rsize/3 ,0 , this.rsize/10);
 
-    pop(); // pop down final transformation	 
+    pop(); // pop down final transformation
+
+    // Draw path
+	ggrid.push(); // start a transformation matrix
+    ggrid.translate( (width + width / 4 ) / 2, height / 2); // move to middle of screen
+    ggrid.scale(scl,scl*-1);
+	ggrid.translate( this.px,this.py); // move to middle of screen
+    ggrid.stroke("green");
+	ggrid.fill("green");
+	ggrid.circle(0 ,0 , this.rsize/20);
+    ggrid.pop();
 	
   }
 }

@@ -10,8 +10,5 @@ When entering the simulation, the robot is not translating, changing the rpm wil
 Click in the grey ring to select the desired drift angle, click in the center to return to initial position.
 You can also use the arrows on your keyboard.
 
+![image](https://user-images.githubusercontent.com/20670049/207611429-31a883a0-3079-41c0-9220-a8dff5517872.png)
 
-
-
-
-![image](https://user-images.githubusercontent.com/20670049/200835672-30545cf5-1768-4643-a171-7aa0ae10fa2a.png)
